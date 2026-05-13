@@ -1,5 +1,5 @@
 <a name="top"></a>
-[![decodeRing Core Server](https://decodering.org/wp-content/uploads/2025/11/Git-Banner-2-scaled.png)](https://decodering.org)
+[![decodeRing Core Server](https://org-web1.decodering.org/images/dcdr_banner.png)](https://decodering.org)
 ![Version](https://img.shields.io/badge/Version-v0.1--draft-blue) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Status](https://img.shields.io/badge/Status-Working_Draft-orange) [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen)](https://github.com/decodeRing-core/dcdr-standard/blob/main/CONTRIBUTING.md)
 
 # Open Secrets Language (OSL) — Abstraction API v1.0.0
