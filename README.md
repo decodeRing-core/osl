@@ -2,545 +2,361 @@
 [![decodeRing Core Server](https://org-web1.decodering.org/images/dcdr_banner.png)](https://decodering.org)
 ![Version](https://img.shields.io/badge/Version-v0.1--draft-blue) [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Status](https://img.shields.io/badge/Status-Working_Draft-orange) [![Contributions Welcome](https://img.shields.io/badge/Contributions-Welcome-brightgreen)](https://github.com/decodeRing-core/dcdr-standard/blob/main/CONTRIBUTING.md)
 
-# Open Secrets Language (OSL) — Abstraction API v1.0.0
+# Open Secrets Language (OSL)
 
-Source reference: current OSL v0.1-draft in the DCDR standard README: https://github.com/decodeRing-core/dcdr-standard/blob/main/README.md
+> One API standard for managing secrets across every major vault and secrets provider.
 
-## 1) Goals
+OSL is an open API standard that abstracts secrets management across providers — HashiCorp Vault, OpenBao, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, Kubernetes ESO, Doppler, CyberArk Conjur, and more — behind a single, consistent interface.
 
-This version updates OSL into a provider-agnostic abstraction that can map cleanly onto:
+Instead of writing provider-specific integrations for every backend your team uses, OSL gives you one standard your apps, pipelines, and platform tooling can rely on — regardless of what's underneath.
 
-- HashiCorp Vault
-- OpenBao
-- HCP Vault
-- AWS Secrets Manager
-- Azure Key Vault
-- Google Cloud Secret Manager
-- CyberArk Conjur
-- Kubernetes External Secrets Operator
-- Doppler
-- Delinea Secret Server
+---
 
-### Key abstraction strategy
+## Why OSL exists
 
-Different providers support different features (e.g., versioning, dynamic credentials, sync/injection). This API:
+Secrets management is fragmented. Every provider has a different API, different auth model, different feature set, and different failure modes. Multi-cloud teams end up with:
 
-1. Defines a **small required core** that all backends can implement.
-2. Adds optional modules (leases, rotation, sync) that are **capability-gated**.
-3. Makes **capability discovery** mandatory so clients never guess.
+- App code tightly coupled to specific vault SDKs
+- Painful migrations when switching or consolidating providers
+- Inconsistent secret lifecycle handling across environments
+- No standard way to discover what a backend actually supports
 
-## 2) Versioning and naming
+OSL solves this by defining a **small required core** every compliant server must implement, plus **optional capability-gated modules** for advanced features like versioning, dynamic credentials, rotation, and sync — so clients never have to guess what a backend supports.
 
-- **Major version in the URL path**: `/osl/v1/...`
-- **Spec version returned in responses**: `"osl_version": "1.0.0"`
-- **Kebab-case** for endpoint paths.
-- **Snake-case** for JSON fields.
+---
 
-## 3) Authentication
-
-Clients MUST send a bearer token on every request:
+## How it works
 
 ```
-Authorization: Bearer <your-token>
+Your App / CLI / SDK
+        │
+        ▼
+  OSL-compliant server  (e.g. decodeRing core-server)
+        │
+        ├── HashiCorp Vault
+        ├── OpenBao
+        ├── AWS Secrets Manager
+        ├── Azure Key Vault
+        ├── GCP Secret Manager
+        ├── Kubernetes ESO
+        └── ... more backends
 ```
 
-## 4) Standard response/error envelopes
+Clients call one standard API. The server handles provider-specific translation.
 
-### Success envelope (recommended)
+---
 
-All 2xx responses SHOULD include:
+## Quick example
 
-```json
+Write a secret — works the same regardless of backend:
+
+```http
+POST /osl/v1/secrets/put
+Authorization: Bearer <token>
+
 {
-  "osl_version": "1.0.0",
-  "status": "operating-completed",
-  "message": "Operation Completed",
-  "data": {}
-}
-```
-
-### Error envelope (required for non-2xx)
-
-All non-2xx responses MUST return:
-
-```json
-{
-  "osl_version": "1.0.0",
-  "error": {
-    "code": "operation-failed",
-    "message": "Operation failed.",
-    "detail": "Node is not initialized."
+  "app_id": "billing-api",
+  "secret_name": "database-creds",
+  "store": {
+    "backend_ref": "vault-1",
+    "store_path": "prod/database-creds"
+  },
+  "data": {
+    "username": "app_user",
+    "password": "super-secret"
   }
 }
 ```
 
-## 5) Common identifiers
+Read it back:
 
-- `app_id`: application scope
-- `backend_ref`: configured backend instance reference (maps to current `backend`)
-- `secret_name`: logical name within an app
-- `store_path`: provider-native secret identifier/path
+```http
+POST /osl/v1/secrets/get
+Authorization: Bearer <token>
 
-## 6) Capability discovery (mandatory)
+{
+  "app_id": "billing-api",
+  "secret_name": "database-creds"
+}
+```
 
-### `GET /osl/v1/capabilities/get`
-
-Clients SHOULD call this at startup and cache responses.
-
-**Response (example):**
+Response:
 
 ```json
 {
   "osl_version": "1.0.0",
-  "status": "operating-completed",
-  "message": "Operation Completed",
+  "status": "operation-completed",
+  "message": "Operation completed",
   "data": {
-    "server_capabilities": [
-      "kv.read",
-      "kv.write",
-      "kv.delete",
-      "kv.taint",
-      "sync.manage",
-      "lease.issue"
-    ],
+    "username": "app_user",
+    "password": "super-secret",
+    "metadata": {
+      "resolved_backend_ref": "vault-1",
+      "provider_version_id": "1"
+    }
+  }
+}
+```
+
+Same client code. Any supported backend.
+
+---
+
+## Who is OSL for?
+
+- **Platform engineers** consolidating secrets infrastructure across clouds or vendors
+- **Security teams** who need consistent lifecycle management and auditability
+- **App developers** who want one integration that works everywhere
+- **Vendors and OSS maintainers** building OSL-compatible servers or backend adapters
+
+---
+
+## Spec status
+
+| Component | Status |
+|---|---|
+| OSL v1.0.0 spec | Alpha draft |
+| Reference implementation | [decodeRing core-server](https://github.com/decodeRing-core/core-server) (alpha) |
+| Go SDK | Available (alpha) |
+| Python SDK | Available (alpha) |
+| Breaking changes | Expected before stable release |
+
+> ⚠️ OSL v1.0.0 is an alpha draft. The spec is open for feedback and contributions. Do not use in production.
+
+---
+
+## Ecosystem
+
+| Repo | Description |
+|---|---|
+| [osl](https://github.com/decodeRing-core/osl) | This repo — the OSL API standard |
+| [core-server](https://github.com/decodeRing-core/core-server) | Reference OSL server implementation (Go) |
+| [dcdr-standard](https://github.com/decodeRing-core/dcdr-standard) | Underlying dcdr standard reference |
+
+---
+
+## Supported backends
+
+| Backend | Core KV | Versioning | Dynamic Creds | Rotation | Sync |
+|---|---|---|---|---|---|
+| HashiCorp Vault | ✅ | ✅ | ✅ | ✅ | — |
+| OpenBao | ✅ | ✅ | ✅ | ✅ | — |
+| AWS Secrets Manager | ✅ | ✅ | — | ✅ | — |
+| Azure Key Vault | ✅ | — | — | — | — |
+| GCP Secret Manager | ✅ | — | — | — | — |
+| Kubernetes ESO | — | — | — | — | ✅ |
+| Doppler | ✅ | — | — | — | ✅ |
+| CyberArk Conjur | ✅ | — | ✅ | — | — |
+
+> Capability support is declared at runtime via `GET /osl/v1/capabilities/get`. Clients should always discover capabilities rather than assume them.
+
+---
+
+## Capability discovery
+
+Clients SHOULD call this at startup and cache the response:
+
+```http
+GET /osl/v1/capabilities/get
+Authorization: Bearer <token>
+```
+
+Response:
+
+```json
+{
+  "osl_version": "1.0.0",
+  "status": "operation-completed",
+  "message": "Operation completed",
+  "data": {
+    "server_capabilities": ["kv.read", "kv.write", "kv.delete", "kv.taint", "sync.manage", "lease.issue"],
     "backends": [
       {
         "backend_ref": "vault-1",
         "type": "vault",
-        "capabilities": [
-          "kv.read",
-          "kv.write",
-          "kv.versioning",
-          "lease.issue",
-          "lease.renew",
-          "lease.revoke"
-        ]
+        "capabilities": ["kv.read", "kv.write", "kv.versioning", "lease.issue", "lease.renew", "lease.revoke"]
       },
       {
         "backend_ref": "aws-1",
         "type": "aws-secrets-manager",
-        "capabilities": [
-          "kv.read",
-          "kv.write",
-          "kv.versioning",
-          "rotation.policy"
-        ]
-      },
-      {
-        "backend_ref": "eso-1",
-        "type": "kubernetes-external-secrets-operator",
-        "capabilities": ["sync.manage", "sync.run", "sync.status"]
+        "capabilities": ["kv.read", "kv.write", "kv.versioning", "rotation.policy"]
       }
     ]
   }
 }
 ```
 
-## 7) Required core: KV secret lifecycle
+---
 
-These endpoints MUST be implemented by an OSL v1 server.
+## API reference
 
-### 7.1) Put secret (create/update)
+### Conventions
 
-#### `POST /osl/v1/secrets/put`
+- **Major version in URL path**: `/osl/v1/...`
+- **Spec version in responses**: `"osl_version": "1.0.0"`
+- **Endpoint paths**: kebab-case
+- **JSON fields**: snake_case
+- **Auth**: Bearer token on every request
 
-Creates or updates a secret.
-
-**Request:**
-
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials",
-  "store": {
-    "backend_ref": "aws-1",
-    "store_path": "production/my-database-credentials"
-  },
-  "data": {
-    "username": "db_user",
-    "password": "super_secret_password"
-  },
-  "options": {
-    "create_only": false
-  }
-}
+```http
+Authorization: Bearer <your-token>
 ```
 
-**Response (example):**
+### Response envelopes
+
+**Success (2xx):**
 
 ```json
 {
   "osl_version": "1.0.0",
   "status": "operation-completed",
-  "message": "Operating completed",
-  "data": {
-    "secret_name": "my-database-credentials",
-    "provider_version_id": "1"
-  }
+  "message": "Operation completed",
+  "data": {}
 }
 ```
 
-### 7.2) Get secret
-
-#### `POST /osl/v1/secrets/get`
-
-Retrieves secret data. Supports selecting a version when available.
-
-**Request:**
-
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials",
-  "version": 0 // Optional defaults to latest if not sent
-}
-```
-
-**Response (example):**
+**Error (non-2xx):**
 
 ```json
 {
   "osl_version": "1.0.0",
-  "status": "operation-completed",
-  "message": "Operating completed",
-  "data": {
-    "password": "super_secret_password",
-    "username": "db_user",
-    "metadata": {
-      "resolved_backend_ref": "openbao-rs",
-      "provider_version_id": "3"
-    }
+  "error": {
+    "code": "operation-failed",
+    "message": "Operation failed",
+    "detail": "Node is not initialized."
   }
 }
 ```
 
-### 7.3) Destroy secret
+### Common identifiers
 
-#### `POST /osl/v1/secrets/destroy`
+| Field | Description |
+|---|---|
+| `app_id` | Application scope |
+| `backend_ref` | Configured backend instance reference |
+| `secret_name` | Logical name within an app |
+| `store_path` | Provider-native secret identifier/path |
 
-Permanently deletes a secret from the provider backend.
+---
 
-**Request:**
+## Required core: KV secret lifecycle
 
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials"
-}
-```
+These endpoints MUST be implemented by any OSL v1-compliant server.
 
-**Response (example):**
+### Put secret (create/update)
+`POST /osl/v1/secrets/put`
 
-```json
-{
-  "osl_version": "1.0.0",
-  "status": "operation-completed",
-  "message": "Operating completed",
-  "data": {
-    "destroyed": true
-  }
-}
-```
+### Get secret
+`POST /osl/v1/secrets/get`
 
-### 7.4) Delete secret
+Supports optional `"version"` field. Defaults to latest if omitted.
 
-#### `POST /osl/v1/secrets/delete`
+### Delete secret (soft delete)
+`POST /osl/v1/secrets/delete`
 
-Soft deletes a secret from the provider backend if supported
+### Destroy secret (permanent)
+`POST /osl/v1/secrets/destroy`
 
-**Request:**
+### List secrets
+`POST /osl/v1/secrets/list`
 
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials"
-}
-```
-
-**Response (example):**
-
-```json
-{
-  "osl_version": "1.0.0",
-  "status": "operation-completed",
-  "message": "Operating completed",
-  "data": {
-    "deleted": true
-  }
-}
-```
-
-### 7.5) List secrets
-
-#### `POST /osl/v1/secrets/list`
-
-Lists secrets for an application.
-
-**Request:**
-
-```json
-{
-  "app_id": "your-app-id"
-}
-```
-
-**Response (example):**
-
-```json
-{
-  "osl_version": "1.0.0",
-  "status": "operation-completed",
-  "message": "Operating completed",
-  "data": [
-    {
-      "secret_name": "my-database-credentials",
-      "backend": "openbao-rs",
-      "mount_path": "production-test/my-database-credentials",
-      "tainted": false
-    }
-  ]
-}
-```
-
-### 7.6) Describe secret
-
-#### `POST /osl/v1/secrets/describe`
+### Describe secret
+`POST /osl/v1/secrets/describe`
 
 Returns provider-agnostic metadata plus provider-native hints (safe metadata only).
 
-**Request:**
+---
 
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials"
-}
-```
+## Required core: Tainting
 
-## 8) Required core: DCDR-style tainting (server-level)
+Tainting is a decodeRing-native concept that suspends access to a secret at the OSL server layer without deleting it from the backend. Useful for incident response and rotation workflows.
 
-These endpoints MUST be implemented by an OSL v1 server and operate at the OSL server layer (not necessarily the provider layer).
+These endpoints MUST be implemented by any OSL v1-compliant server.
 
-### 8.1) Taint
+| Endpoint | Description |
+|---|---|
+| `POST /osl/v1/secrets/taint` | Suspend access to a secret |
+| `POST /osl/v1/secrets/untaint` | Restore access to a secret |
+| `POST /osl/v1/secrets/is-tainted` | Check taint status |
 
-#### `POST /osl/v1/secrets/taint`
+---
 
-**Request:**
+## Optional modules
 
-```json
-{ "app_id": "your-app-id", "secret_name": "my-database-credentials" }
-```
+Optional modules are capability-gated. Servers MUST return a structured `feature-not-supported` error when a client calls an optional endpoint against a backend that lacks the required capability.
 
-### 8.2) Untaint
-
-#### `POST /osl/v1/secrets/untaint`
-
-**Request:**
-
-```json
-{ "app_id": "your-app-id", "secret_name": "my-database-credentials" }
-```
-
-### 8.3) Is tainted
-
-#### `POST /osl/v1/secrets/is-tainted`
-
-**Request:**
-
-```json
-{ "app_id": "your-app-id", "secret_name": "my-database-credentials" }
-```
-
-**Response (example):**
-
-```json
-{
-  "osl_version": "1.0.0",
-  "data": { "tainted": true }
-}
-```
-
-## 9) Optional module: Secret versioning
-
-This module is available when backend has `kv.versioning`.
+### Secret versioning
+Available when backend has `kv.versioning`.
 
 - `POST /osl/v1/secrets/versions/list`
 - `POST /osl/v1/secrets/versions/get`
 
-Servers MUST return `feature-not-supported` when a client calls these against a backend that lacks versioning.
-
-## 10) Optional module: Dynamic credentials / checkout (leases)
-
-This module abstracts:
-
-- Vault/OpenBao/HCP Vault dynamic secrets (leases)
-- “checkout”-style flows in enterprise vaults when available
-
+### Dynamic credentials / leases
 Available when backend has `lease.issue`.
 
-### 10.1) Issue credential
+- `POST /osl/v1/credentials/issue`
+- `POST /osl/v1/credentials/renew`
+- `POST /osl/v1/credentials/revoke`
 
-#### `POST /osl/v1/credentials/issue`
-
-**Request:**
-
-```json
-{
-  "app_id": "your-app-id",
-  "credential_name": "db-readonly",
-  "backend_ref": "vault-1",
-  "parameters": {
-    "role": "readonly",
-    "ttl_seconds": 3600
-  }
-}
-```
-
-**Response (example):**
-
-```json
-{
-  "osl_version": "1.0.0",
-  "data": {
-    "username": "v-generated-user",
-    "password": "v-generated-pass",
-    "lease": {
-      "lease_id": "lease-abc",
-      "expires_at": "2026-04-20T18:20:00Z",
-      "renewable": true
-    }
-  }
-}
-```
-
-### 10.2) Renew credential
-
-#### `POST /osl/v1/credentials/renew`
-
-```json
-{ "lease_id": "lease-abc", "extend_ttl_seconds": 3600 }
-```
-
-### 10.3) Revoke credential
-
-#### `POST /osl/v1/credentials/revoke`
-
-```json
-{ "lease_id": "lease-abc" }
-```
-
-## 11) Optional module: Rotation
-
-Rotation differs significantly per provider. This abstraction supports:
-
-- Policy definition (when supported)
-- Manual rotate trigger (best-effort)
-
+### Rotation
 Available when backend has `rotation.policy` and/or `rotation.rotate`.
 
-### 11.1) Put rotation policy
+- `POST /osl/v1/rotation-policies/put`
+- `POST /osl/v1/secrets/rotate`
 
-#### `POST /osl/v1/rotation-policies/put`
+### Sync / materialization
+Available when backend has `sync.manage`. Abstracts Kubernetes ESO and Doppler sync patterns.
 
-```json
-{
-  "app_id": "your-app-id",
-  "secret_name": "my-database-credentials",
-  "policy": {
-    "mode": "scheduled",
-    "interval_seconds": 604800
-  }
-}
-```
-
-### 11.2) Rotate secret
-
-#### `POST /osl/v1/secrets/rotate`
-
-```json
-{ "app_id": "your-app-id", "secret_name": "my-database-credentials" }
-```
-
-## 12) Optional module: Sync / materialization
-
-This module abstracts:
-
-- Kubernetes External Secrets Operator (ESO)
-- Doppler sync/injection patterns
-
-Available when backend (or server) has `sync.manage`.
-
-### 12.1) Put sync
-
-#### `POST /osl/v1/syncs/put`
-
-```json
-{
-  "app_id": "your-app-id",
-  "sync_name": "prod-db-to-k8s",
-  "source": {
-    "secret_name": "my-database-credentials",
-    "version": "latest"
-  },
-  "target": {
-    "type": "kubernetes-secret",
-    "cluster_ref": "cluster-1",
-    "namespace": "production",
-    "name": "db-credentials",
-    "template": {
-      "type": "opaque"
-    }
-  }
-}
-```
-
-### 12.2) Run sync
-
-#### `POST /osl/v1/syncs/run`
-
-```json
-{ "app_id": "your-app-id", "sync_name": "prod-db-to-k8s" }
-```
-
-### 12.3) Get sync status
-
-#### `POST /osl/v1/syncs/status/get`
-
-```json
-{ "app_id": "your-app-id", "sync_name": "prod-db-to-k8s" }
-```
-
-### 12.4) List / delete syncs
-
+- `POST /osl/v1/syncs/put`
+- `POST /osl/v1/syncs/run`
+- `POST /osl/v1/syncs/status/get`
 - `POST /osl/v1/syncs/list`
 - `POST /osl/v1/syncs/delete`
 
-## 13) Management API (mapped from current draft)
+---
 
-### 13.1) List applications
+## Management API
 
-#### `GET /osl/v1/apps/list`
+- `GET /osl/v1/apps/list` — List registered applications
+- `GET /osl/v1/backends/list` — List configured backends
 
-### 13.2) List backends
+---
 
-#### `GET /osl/v1/backends/list`
+## Migration from dcdr v0.1-draft
 
-## 14) Migration mapping (v0.1-draft → v1.0.0)
+| Old endpoint | OSL v1 endpoint |
+|---|---|
+| `POST /api/dcdrCreateSecret` | `POST /osl/v1/secrets/put` |
+| `POST /api/dcdrGet` | `POST /osl/v1/secrets/get` |
+| `POST /api/dcdrDestroy` | `POST /osl/v1/secrets/destroy` |
+| `POST /api/dcdrTaint` | `POST /osl/v1/secrets/taint` |
+| `POST /api/dcdrUntaint` | `POST /osl/v1/secrets/untaint` |
+| `POST /api/dcdrIsTainted` | `POST /osl/v1/secrets/is-tainted` |
+| `POST /api/dcdrListSecrets` | `POST /osl/v1/secrets/list` |
+| `GET /api/dcdrListApps` | `GET /osl/v1/apps/list` |
+| `GET /api/dcdrListBackends` | `GET /osl/v1/backends/list` |
 
-- `POST /api/dcdrCreateSecret` → `POST /osl/v1/secrets/put`
-- `POST /api/dcdrGet` → `POST /osl/v1/secrets/get`
-- `POST /api/dcdrDestroy` → `POST /osl/v1/secrets/delete`
-- `POST /api/dcdrTaint` → `POST /osl/v1/secrets/taint`
-- `POST /api/dcdrUntaint` → `POST /osl/v1/secrets/untaint`
-- `POST /api/dcdrIsTainted` → `POST /osl/v1/secrets/is-tainted`
-- `POST /api/dcdrListSecrets` → `POST /osl/v1/secrets/list`
-- `GET /api/dcdrListApps` → `GET /osl/v1/apps/list`
-- `GET /api/dcdrListBackends` → `GET /osl/v1/backends/list`
+---
 
-## 15) Implementation note
+## Implementation notes
 
-To keep the abstraction honest across all listed systems:
-
-- Treat only the **core** as universally supported.
+- Treat only the **required core** as universally supported.
 - Gate everything else behind `capabilities/get`.
-- Return structured `feature-not-supported` errors for optional module calls.
+- Return structured `feature-not-supported` errors for unsupported optional module calls.
+- Clients should never assume capabilities — always discover them.
+
+---
+
+## Contributing
+
+OSL is an open standard. Contributions are welcome:
+
+- 💬 [Open a discussion](https://github.com/decodeRing-core/osl/discussions) — propose changes, ask questions, share use cases
+- 🐛 [File an issue](https://github.com/decodeRing-core/osl/issues) — report spec gaps, inconsistencies, or errors
+- 🔌 Building an OSL-compatible server or backend adapter? Open a PR or discussion — we want to know.
+
+---
+
+## License
+
+Licensed under the Apache License, Version 2.0.
