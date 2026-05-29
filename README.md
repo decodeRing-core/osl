@@ -115,13 +115,13 @@ Same client code. Any supported backend.
 
 | Component | Status |
 |---|---|
-| OSL v1.0.0 spec | Alpha draft |
+| OSL v1.0.0 spec | Beta draft |
 | Reference implementation | [decodeRing core-server](https://github.com/decodeRing-core/core-server) (alpha) |
 | Go SDK | Available (alpha) |
 | Python SDK | Available (alpha) |
 | Breaking changes | Expected before stable release |
 
-> ⚠️ OSL v1.0.0 is an alpha draft. The spec is open for feedback and contributions. Do not use in production.
+> ⚠️ OSL v1.0.0 is an beta draft. The spec is open for feedback and contributions. Do not use in production.
 
 ---
 
