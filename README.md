@@ -6,9 +6,9 @@
 
 > One API standard for managing secrets across every major vault and secrets provider.
 
-OSL is an open API standard that abstracts secrets management across providers — HashiCorp Vault, OpenBao, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, Kubernetes ESO, Doppler, CyberArk Conjur, and more — behind a single, consistent interface.
+OSL is an open API standard that abstracts secrets management across providers - HashiCorp Vault, OpenBao, AWS Secrets Manager, Azure Key Vault, GCP Secret Manager, Kubernetes ESO, Doppler, CyberArk Conjur, and more - behind a single, consistent interface.
 
-Instead of writing provider-specific integrations for every backend your team uses, OSL gives you one standard your apps, pipelines, and platform tooling can rely on — regardless of what's underneath.
+Instead of writing provider-specific integrations for every backend your team uses, OSL gives you one standard your apps, pipelines, and platform tooling can rely on - regardless of what's underneath.
 
 ---
 
@@ -21,7 +21,7 @@ Secrets management is fragmented. Every provider has a different API, different 
 - Inconsistent secret lifecycle handling across environments
 - No standard way to discover what a backend actually supports
 
-OSL solves this by defining a **small required core** every compliant server must implement, plus **optional capability-gated modules** for advanced features like versioning, dynamic credentials, rotation, and sync — so clients never have to guess what a backend supports.
+OSL solves this by defining a **small required core** every compliant server must implement, plus **optional capability-gated modules** for advanced features like versioning, dynamic credentials, rotation, and sync - so clients never have to guess what a backend supports.
 
 ---
 
@@ -48,7 +48,7 @@ Clients call one standard API. The server handles provider-specific translation.
 
 ## Quick example
 
-Write a secret — works the same regardless of backend:
+Write a secret - works the same regardless of backend:
 
 ```http
 POST /osl/v1/secrets/put
@@ -129,7 +129,7 @@ Same client code. Any supported backend.
 
 | Repo | Description |
 |---|---|
-| [osl](https://github.com/decodeRing-core/osl) | This repo — the OSL API standard |
+| [osl](https://github.com/decodeRing-core/osl) | This repo - the OSL API standard |
 | [core-server](https://github.com/decodeRing-core/core-server) | Reference OSL server implementation (Go) |
 | [dcdr-standard](https://github.com/decodeRing-core/dcdr-standard) | Underlying dcdr standard reference |
 
@@ -317,8 +317,8 @@ Available when backend has `sync.manage`. Abstracts Kubernetes ESO and Doppler s
 
 ## Management API
 
-- `GET /osl/v1/apps/list` — List registered applications
-- `GET /osl/v1/backends/list` — List configured backends
+- `GET /osl/v1/apps/list` - List registered applications
+- `GET /osl/v1/backends/list` - List configured backends
 
 ---
 
@@ -343,7 +343,7 @@ Available when backend has `sync.manage`. Abstracts Kubernetes ESO and Doppler s
 - Treat only the **required core** as universally supported.
 - Gate everything else behind `capabilities/get`.
 - Return structured `feature-not-supported` errors for unsupported optional module calls.
-- Clients should never assume capabilities — always discover them.
+- Clients should never assume capabilities - always discover them.
 
 ---
 
@@ -351,9 +351,9 @@ Available when backend has `sync.manage`. Abstracts Kubernetes ESO and Doppler s
 
 OSL is an open standard. Contributions are welcome:
 
-- 💬 [Open a discussion](https://github.com/decodeRing-core/osl/discussions) — propose changes, ask questions, share use cases
-- 🐛 [File an issue](https://github.com/decodeRing-core/osl/issues) — report spec gaps, inconsistencies, or errors
-- 🔌 Building an OSL-compatible server or backend adapter? Open a PR or discussion — we want to know.
+- 💬 [Open a discussion](https://github.com/decodeRing-core/osl/discussions) - propose changes, ask questions, share use cases
+- 🐛 [File an issue](https://github.com/decodeRing-core/osl/issues) - report spec gaps, inconsistencies, or errors
+- 🔌 Building an OSL-compatible server or backend adapter? Open a PR or discussion - we want to know.
 
 ---
 
